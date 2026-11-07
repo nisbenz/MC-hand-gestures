@@ -10,6 +10,7 @@ from mc_gesture.capture.camera import Frame
 from mc_gesture.config import Config
 from mc_gesture.detect.detector import Detection, Detector
 from mc_gesture.players import tracker
+from mc_gesture.stabilize.gestures import GestureStabilizer
 
 
 @dataclass
@@ -25,6 +26,7 @@ class Engine:
         self.config = config or Config()
         self.detector = detector or Detector(use_gpu=use_gpu)
         self.tracker = tracker.PlayerTracker(self.config)
+        self.stabilizer = GestureStabilizer(self.config)
         self._t0 = None
 
     def step(self, frame: Frame) -> Output:
@@ -33,7 +35,11 @@ class Engine:
         t = frame.t_capture - self._t0
         detection = self.detector.process(frame.image_bgr, frame.t_capture)
         players = self.tracker.update(detection, t)
-        events = [dict(e, t=round(t, 3)) for e in players.events]
+        gesture_events = self.stabilizer.update(players.players, t)
+        # player_left comes after the gesture_end / hand_lost events it causes
+        joined = [e for e in players.events if e["type"] == "player_joined"]
+        left = [e for e in players.events if e["type"] == "player_left"]
+        events = [dict(e, t=round(t, 3)) for e in joined + gesture_events + left]
         return Output(t, detection, players, events)
 
     def close(self) -> None:

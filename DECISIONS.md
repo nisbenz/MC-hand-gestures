@@ -45,13 +45,13 @@ Each entry records who made the decision and why. "Owner" = decided by the proje
 | C8 | **An existing player only leaves when their median size over ~1 s drops below half the join size**, or after 0.5 s unseen | Pose misjudged your shoulders (0.15 → 0.04) for nearly a second in the recording and created a new player ID; this rule keeps one ID for the whole clip | Low |
 | C9 | **A hand belongs to a player if its wrist is within 0.6 shoulder widths of one of the player's pose wrists**; otherwise it's dropped | In the recording, 90% of hands were within 0.29 | Low |
 | C10 | **Output coordinates are mirrored by default** (`mirror: true`), like a selfie view | Players face the screen, so moving a hand right should move the cursor right | Low: one setting |
+| C11 | **Default thresholds: a gesture starts at score ≥ 0.6 and ends below 0.45** (was 0.7 / 0.5 in P1); calibration can set them per gesture | In the recording, Open_Palm scored a median of 0.61 and only 8% of its frames reached 0.7, so at 0.7 it would rarely fire | Low: settings |
+| C12 | **Timing (P1, P2):** a gesture must last 0.1 s to start and be gone 0.1 s to end; 0.2 s cooldown per hand; a hand can vanish for 0.15 s without losing its state; `gesture_hold` every 0.25 s; one active gesture per hand | The values proposed in P1/P2, now built and covered by unit tests | Low: settings |
 
 ## Proposed  not yet confirmed
 
 | # | Proposal | Status |
 |---|---|---|
-| P1 | **Stabilize stage:** separate enter/exit thresholds, minimum hold time (~100 ms), cooldown, one active gesture at a time | Accepted implicitly; confirm the numbers during the build |
-| P2 | **Tracking-loss grace period** (~150 ms): keep the last state through short dropouts before sending `hand_lost` | Not discussed directly |
 | P3 | **Wake gesture + lock** (hold an open palm for 1 s to claim control) as an **optional helper** a game can turn on | Not confirmed |
 | P5 | **Health status** (OK / degraded / bad) from detection confidence and frame brightness, so games can react to bad lighting | Not confirmed |
 | P6 | **The game shows who is in control** (e.g. highlights the locked player) | Requirement from research; not confirmed |
@@ -60,7 +60,7 @@ Each entry records who made the decision and why. "Owner" = decided by the proje
 
 | # | Question | Notes |
 |---|---|---|
-| O1 | **What makes a gesture "the best"?** | Proposed: recognized reliably (high score when made) **and** rarely made by accident. Measure each built-in gesture with the replay harness, then pick 3. |
+| O1 | **What makes a gesture "the best"?** | Proposed: recognized reliably (high score when made) **and** rarely made by accident. Measure each built-in gesture with the replay harness, then pick 3. **First evidence (unlabeled, one person, one camera):** median scores Pointing_Up 0.81, Closed_Fist 0.78, Open_Palm 0.61, Thumb_Up 0.52. The engine uses Closed_Fist, Open_Palm and Pointing_Up for now; the labeled report (step 6) is the real test. |
 | O4 | **Body size threshold:** fixed value or set by calibration per venue? | |
 | O5 | **Calibration flow:** what the user does (hold each gesture for N seconds?) and what it sets | |
 | O7 | **Demo game:** there will be one (User); still open: what it is and which gestures it uses | Must use only the engine's events, never MediaPipe directly. |

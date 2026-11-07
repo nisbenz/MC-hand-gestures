@@ -17,8 +17,8 @@ class Config:
     player_grace_s: float = 0.5     # keep a player through short tracking gaps
 
     # Stabilize (P1, P2)
-    enter_threshold: float = 0.7    # score needed to start a gesture
-    exit_threshold: float = 0.5     # score below which a held gesture ends
+    enter_threshold: float = 0.6    # score needed to start a gesture
+    exit_threshold: float = 0.45    # score below which a held gesture ends
     thresholds: dict[str, list[float]] = field(default_factory=dict)  # per gesture [enter, exit], from calibration
     min_hold_s: float = 0.1         # gesture must last this long before gesture_start
     release_s: float = 0.1          # and be gone this long before gesture_end

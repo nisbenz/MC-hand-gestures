@@ -54,7 +54,7 @@ def text(image, label, origin, color=(255, 255, 255), scale=0.65):
     cv2.putText(image, label, origin, cv2.FONT_HERSHEY_SIMPLEX, scale, color, 1 if scale < 0.7 else 2)
 
 
-def draw(view, out: Output, mirror: bool) -> None:
+def draw(view, out: Output, mirror: bool, active=lambda player, side: None) -> None:
     d = Drawer(view, mirror)
     for body in out.players.bystanders:
         d.body(body, GREY, 1)
@@ -67,7 +67,10 @@ def draw(view, out: Output, mirror: bool) -> None:
         tag = f"P{player.id}" + (f" [{player.zone}]" if player.zone else "")
         text(view, tag, (x - 20, y - 30), color, 0.9)
         for side, hand in player.hands.items():
-            d.hand(hand, color, f"{side[0].upper()} {hand.gesture} {hand.gesture_score:.2f}")
+            label = f"{side[0].upper()} {hand.gesture} {hand.gesture_score:.2f}"
+            if gesture := active(player.id, side):
+                label = f">> {gesture} <<  ({hand.gesture_score:.2f})"  # the event the game sees
+            d.hand(hand, color, label)
 
 
 def main() -> None:
@@ -105,7 +108,8 @@ def main() -> None:
             out = engine.step(frame)
             t_done = time.perf_counter()
             for event in out.events:
-                print("[event]", event)
+                if event["type"] != "gesture_hold":
+                    print("[event]", event)
 
             window.append((
                 out.detection.gesture_ms,
@@ -116,7 +120,7 @@ def main() -> None:
             last_frame_time = t_done
 
             view = cv2.flip(frame.image_bgr, 1) if config.mirror else frame.image_bgr.copy()
-            draw(view, out, config.mirror)
+            draw(view, out, config.mirror, engine.stabilizer.active)
 
             g_ms, p_ms, total_ms, dt = (statistics.median(col) for col in zip(*window))
             detector = engine.detector
