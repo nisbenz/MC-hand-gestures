@@ -8,6 +8,8 @@ dependencies = [
     # mediapipe pulls in opencv-contrib-python; a second OpenCV package would clash over cv2
     "mediapipe==1.1.1",
     "numpy>=1.26",
+    "oneeurofilter>=0.2.1",
+    "websockets>=17.4",
 ]
 
 [project.scripts]
@@ -19,3 +21,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mc_gesture"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["tests"]

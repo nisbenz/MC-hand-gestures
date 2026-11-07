@@ -30,6 +30,7 @@ class Detection:
     poses: list[list[tuple[float, float, float]]] = field(default_factory=list)  # 33 points (x, y, visibility)
     gesture_ms: float = 0.0
     pose_ms: float = 0.0
+    aspect: float = 16 / 9  # frame width / height, to measure distances in equal units
 
 
 def _create(task_cls, options_cls, model: str, use_gpu: bool, **kwargs):
@@ -91,7 +92,7 @@ class Detector:
         ts = max(int(t_capture * 1000), self._last_ts + 1)
         self._last_ts = ts
 
-        detection = Detection()
+        detection = Detection(aspect=image_bgr.shape[1] / image_bgr.shape[0])
         run_pose = self._frame % self._pose_every == 0
         self._frame += 1
 
