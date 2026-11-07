@@ -62,6 +62,8 @@ class Replay:
     it did live. With realtime=True it also waits between frames like the camera did.
     """
 
+    live = False  # when read() returns None, the recording is over
+
     def __init__(self, session: Path, realtime: bool = True):
         self.path = Path(session)
         self._cap = cv2.VideoCapture(str(self.path / "video.avi"))

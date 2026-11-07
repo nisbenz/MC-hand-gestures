@@ -29,6 +29,9 @@ class Player:
     last_seen: float
     hands: dict[str, Hand] = field(default_factory=dict)  # "left"/"right" = the body's own side
     zone: str | None = None
+    zoned: bool = False                 # has had a first zone placement
+    pending_zone: str | None = None
+    pending_since: float = 0.0
     sizes: deque = field(default_factory=lambda: deque(maxlen=30))  # ~1 s of shoulder widths
 
 
@@ -128,4 +131,34 @@ class PlayerTracker:
         dropped = [hand for h, hand in enumerate(detection.hands) if h not in used_hands]
 
         players = sorted(self._players.values(), key=lambda p: p.id)
+        if self.config.zones:
+            players = self._zones(players, dropped, events)
         return Frame(players, bystanders, dropped, events)
+
+    def _zones(self, players: list[Player], dropped: list[Hand], events: list[dict]) -> list[Player]:
+        """Labels each player with the app-defined zone they stand in (D5, D11).
+        In "filter" mode, players outside every zone are left out (their hands are dropped)."""
+        kept = []
+        for player in players:
+            x = 1 - player.center[0] if self.config.mirror else player.center[0]  # zones use output coordinates
+            y = player.center[1]
+            zone = next((name for name, (x1, y1, x2, y2) in self.config.zones.items()
+                         if x1 <= x <= x2 and y1 <= y <= y2), None)
+            # someone standing on a boundary would flip zones every frame: a new zone
+            # only counts once the player has been in it for zone_hold_s
+            if not player.zoned:
+                player.zone, player.zoned = zone, True  # a new player's first zone counts at once
+                if zone:
+                    events.append({"type": "zone_changed", "player": player.id, "zone": zone})
+            elif zone == player.zone:
+                player.pending_zone = None
+            elif zone != player.pending_zone:
+                player.pending_zone, player.pending_since = zone, player.last_seen
+            elif player.last_seen - player.pending_since >= self.config.zone_hold_s:
+                player.zone, player.pending_zone = zone, None
+                events.append({"type": "zone_changed", "player": player.id, "zone": zone})
+            if player.zone is None and self.config.zone_mode == "filter":
+                dropped.extend(player.hands.values())
+                continue
+            kept.append(player)
+        return kept

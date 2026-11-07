@@ -15,16 +15,29 @@ class Frame:
 
 
 class Camera:
+    live = True  # a recording (Replay) ends; a camera that stops may come back
+
     def __init__(self, device: int = 0, width: int = 1280, height: int = 720):
-        self._cap = cv2.VideoCapture(device)
-        if not self._cap.isOpened():
+        self._device, self._size = device, (width, height)
+        self._index = 0
+        if not self._open():
             raise RuntimeError(f"Could not open camera {device}")
+
+    def _open(self) -> bool:
+        self._cap = cv2.VideoCapture(self._device)
+        if not self._cap.isOpened():
+            return False
         # Many USB webcams default to uncompressed YUYV, which manages only ~5 fps at 720p.
         # MJPG is compressed and reaches 30 fps. Set it before the size.
         self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-        self._index = 0
+        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._size[0])
+        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._size[1])
+        return True
+
+    def reopen(self) -> bool:
+        """After the camera stopped (e.g. unplugged): try to open it again (O9)."""
+        self._cap.release()
+        return self._open() and self._cap.read()[0]
 
     def describe(self) -> str:
         """Format, size and rate the camera actually agreed to (it may ignore what we asked for)."""

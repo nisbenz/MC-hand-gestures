@@ -10,6 +10,7 @@ from mc_gesture.capture.camera import Frame
 from mc_gesture.config import Config
 from mc_gesture.detect.detector import Detection, Detector
 from mc_gesture.players import tracker
+from mc_gesture.players.lock import PlayerLock
 from mc_gesture.smoothing.points import HandSmoother
 from mc_gesture.stabilize.gestures import GestureStabilizer
 
@@ -31,6 +32,7 @@ class Engine:
         self.tracker = tracker.PlayerTracker(self.config)
         self.stabilizer = GestureStabilizer(self.config)
         self.smoother = HandSmoother(self.config)
+        self.lock = PlayerLock(self.config) if self.config.lock else None
         self._t0 = None
 
     def _x(self, x: float) -> float:
@@ -44,13 +46,18 @@ class Engine:
         players = self.tracker.update(detection, t)
         gesture_events = self.stabilizer.update(players.players, t)
         # player_left comes after the gesture_end / hand_lost events it causes
-        joined = [e for e in players.events if e["type"] == "player_joined"]
+        joined = [e for e in players.events if e["type"] != "player_left"]
         left = [e for e in players.events if e["type"] == "player_left"]
-        events = [dict(e, t=round(t, 3)) for e in joined + gesture_events + left]
+        events = joined + gesture_events + left
+        if self.lock:
+            events = self.lock.update(events, t)
+        events = [dict(e, t=round(t, 3)) for e in events]
 
         out = Output(t, detection, players, events)
         keys = set()
         for player in players.players:
+            if self.lock and not self.lock.allows(player.id):
+                continue
             hands = {}
             for side, hand in player.hands.items():
                 key = (player.id, side)

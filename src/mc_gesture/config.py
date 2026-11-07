@@ -34,6 +34,7 @@ class Config:
     # Zones (D5, D11): name -> [x1, y1, x2, y2] in output coordinates (0..1)
     zones: dict[str, list[float]] = field(default_factory=dict)
     zone_mode: str = "label"        # "label" reports the zone; "filter" also drops players outside every zone
+    zone_hold_s: float = 0.3        # a player must stay in a new zone this long before it counts
 
     # Lock helper (P3): off unless the app turns it on
     lock: bool = False

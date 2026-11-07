@@ -16,6 +16,7 @@ from pathlib import Path
 from mc_gesture.capture.camera import Camera
 from mc_gesture.config import Config
 from mc_gesture.engine import Engine
+from mc_gesture.health import Health
 from mc_gesture.record.recorder import Recorder, Replay
 
 
@@ -53,13 +54,36 @@ def run(args) -> None:
         viewer = Viewer(config.mirror)
 
     stats = deque(maxlen=60)  # last ~2 s of frames for the on-screen averages
+    health = Health()
     last_frame_time = time.perf_counter()
+
+    def report_health(now: float, players: int) -> None:
+        message = health.report(now, players)
+        if not message:
+            return
+        previous = getattr(report_health, "status", "ok")
+        if message["status"] != previous:
+            print(f"[health] {message['status']}: {', '.join(message['reasons']) or 'all good'}")
+        report_health.status = message["status"]
+        if server:
+            server.publish("health", message)
+
     try:
         while True:
             frame = source.read()
             t_read = time.perf_counter()  # frame.t_capture is the recorded time during replay
             if frame is None:
-                break
+                if not source.live:
+                    break  # end of the recording
+                # camera stopped (unplugged?): tell the games, keep trying to get it back (O9)
+                health.camera_ok = False
+                report_health(t_read, 0)
+                time.sleep(1.0)
+                if source.reopen():
+                    health.camera_ok = True
+                    print("[camera] back")
+                continue
+            health.frame(frame.image_bgr, t_read)
             if recorder:
                 recorder.write(frame)
             out = engine.step(frame)
@@ -69,6 +93,7 @@ def run(args) -> None:
                 server.publish("cursor", {"type": "cursor", "t": round(out.t, 3), "cursors": out.cursors})
                 server.publish("landmarks", {"type": "landmarks", "t": round(out.t, 3), "players": out.landmarks})
             t_done = time.perf_counter()
+            report_health(t_done, len(out.players.players))
             for event in out.events:
                 if event["type"] != "gesture_hold":
                     print("[event]", event)
@@ -88,6 +113,10 @@ def run(args) -> None:
                 ]
                 if server:
                     lines.append(f"clients {server.clients}")
+                if health.status and health.status != "ok":
+                    lines.append(f"HEALTH {health.status.upper()}")
+                if engine.lock:
+                    lines.append(f"lock: {'P' + str(engine.lock.locked) if engine.lock.locked else 'waiting'}")
                 badge = "REC" if recorder else (f"REPLAY {frame.index}" if args.replay else None)
                 if not viewer.show(frame.image_bgr, out, engine.stabilizer.active, lines, badge):
                     break
