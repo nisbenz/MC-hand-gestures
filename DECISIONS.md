@@ -27,6 +27,18 @@ Each entry records who made the decision and why. "User" = project owner; "Claud
 | D14 | **Build order:** (1) camera + GestureRecognizer + Pose on screen with timings → (2) recorder + replay → (3) player filter → (4) stabilize → events → (5) WebSocket + layers (cursor smoothing here) → (6) report → (7) calibration → (8) demo game → (9) zones, lock, health | User (order proposed by Claude) | Each step ends with something runnable. Recording comes early so every later step is tested on the same footage. |
 | D15 | **Record and replay harness** (was P4): record the **camera video** plus timestamps, label ground truth, rerun the engine offline to measure false activations, misses and latency | User | Required to check D12 and D13. Recording video (not only results) lets us rerun with different settings, such as GPU vs CPU or lighting fixes. |
 
+| D16 | **Python 3.12, MediaPipe pinned to 1.1.1**, environment managed with `uv` | User (`uv` chosen by Claude) | 3.12 has the widest package support for Windows and macOS laptops; 1.1.1 is recent but past its first bug-fix release. |
+
+## Made by Claude during the build (check these)
+
+| # | Choice | Why | Cost to change |
+|---|---|---|---|
+| C1 | **Pose model = `pose_landmarker_lite`** | Fastest option, for the CPU latency target (D8, D13) | Low: swap the file in `tools/download_models.py` |
+| C2 | **Both models run in VIDEO mode** (synchronous calls, our own timestamps) | A recorded video then replays exactly like the live camera (D15) | Medium |
+| C3 | **Detect up to 4 people / 8 hands** | Bystanders must be *detected* before the player filter can drop them (D3) | Low: one parameter |
+| C5 | **Camera requests MJPG** and the engine prints the format/size/rate it actually got | The default YUYV gave 4 FPS at 720p on the dev webcam; MJPG gives 30. Club webcams may behave differently, so the actual format is reported | Low |
+| C4 | **Only `opencv-contrib-python`** (pulled in by MediaPipe), not `opencv-python` too | Two OpenCV packages overwrite each other's `cv2` files | Low |
+
 ## Proposed  not yet confirmed
 
 | # | Proposal | Status |
@@ -45,6 +57,7 @@ Each entry records who made the decision and why. "User" = project owner; "Claud
 | O4 | **Body size threshold:** fixed value or set by calibration per venue? | |
 | O5 | **Calibration flow:** what the user does (hold each gesture for N seconds?) and what it sets | |
 | O7 | **Demo game:** there will be one (User); still open: what it is and which gestures it uses | Must use only the engine's events, never MediaPipe directly. |
+| O9 | **Camera unplugged mid-session:** right now the engine just stops. Should it keep retrying and report `camera_lost` to games (part of P5 health)? | Found in step 1 testing: unplugging the webcam ends the loop (`errno=19 No such device`). A loose USB cable at an event would freeze the game silently. |
 | O8 | **Packaging / install:** how people get the engine onto a laptop (e.g. `pip install`, or a single executable for Windows) | Not about GPU; GPU is settled in D8. Low priority for the MVP. |
 
 ## Hopes, not yet evidence
