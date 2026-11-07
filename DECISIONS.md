@@ -51,6 +51,8 @@ Each entry records who made the decision and why. "Owner" = decided by the proje
 | C14 | **The cursor is the smoothed palm center** (wrist + finger bases), not a fingertip | The palm stays put while fingers change shape, so making a fist doesn't jump the cursor | Low |
 | C15 | **The server listens on 127.0.0.1 only by default**; `--host 0.0.0.0` opens it to other machines | Safer default: the camera feed's data stays on the laptop unless asked | Low |
 | C16 | **One command, `mc-gesture`**, runs the engine and server (`--view` adds the debug window); `mc-gesture-view` is the window without the server | | Low |
+| C17 | **Error scoring:** a label counts as hit if a `gesture_start` of the same gesture comes between 0.3 s before the label start and the label end; leftover `gesture_start` events are false activations; a wrong gesture counts as one miss plus one false activation | Labels are timed by hand, so a small early margin is fair | Low |
+| C18 | **The report's latency is engine latency** (frame read → events ready). Camera and display delay aren't measurable in software and are stated as excluded | Honest about what the number covers; a phone slow-motion test can add the rest later | Low |
 
 ## Proposed  not yet confirmed
 
