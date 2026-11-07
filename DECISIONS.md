@@ -60,24 +60,19 @@ Each entry records who made the decision and why. "Owner" = decided by the proje
 | C23 | **Health (P5):** once a second on the `health` layer: status `ok` / `degraded` (below 20 fps, too dark < 50 or too bright > 215 mean grey) / `bad` (below 10 fps or camera lost) | Lets a game show "move to better light" instead of glitching | Low: constants in `health.py` |
 | C24 | **Camera unplugged (O9): the engine keeps running**, reports `camera: lost` / status `bad`, and tries to reopen the camera every second | A loose USB cable shouldn't need a restart at an event. Reopening is tested; an actual unplug-and-replug hasn't been tested on hardware yet | Low |
 
-## Proposed  not yet confirmed
-
-| # | Proposal | Status |
-|---|---|---|
-
 ## Still open
 
 | # | Question | Notes |
 |---|---|---|
 | O1 | **What makes a gesture "the best"?** | Proposed: recognized reliably (high score when made) **and** rarely made by accident. Measure each built-in gesture with the replay harness, then pick 3. **First evidence (unlabeled, one person, one camera):** median scores Pointing_Up 0.81, Closed_Fist 0.78, Open_Palm 0.61, Thumb_Up 0.52. The engine uses Closed_Fist, Open_Palm and Pointing_Up for now; the labeled report (step 6) is the real test. |
-| O10 | **Recording consent:** who may be recorded at events (volunteers only, or public sessions with signage)? | User chose "decide later". **Must be settled before the first event recording.** Recordings stay local (gitignored). |
+| O10 | **Recording consent:** who may be recorded at events (volunteers only, or public sessions with signage)? | Owner chose "decide later". **Must be settled before the first event recording.** Recordings stay local (gitignored). |
 | O8 | **Packaging / install:** how people get the engine onto a laptop (e.g. `pip install`, or a single executable for Windows) | Not about GPU; GPU is settled in D8. Low priority for the MVP. |
 
 ## Hopes, not yet evidence
 
 These need measuring with the replay harness before we rely on them.
 
-- The built-in GestureRecognizer is accurate enough for event use.
-- Pose + Hands together run fast enough on a Windows laptop CPU.
-- Body size separates players from people behind them well enough.
-- Lighting fixes (camera exposure lock, contrast correction) actually help MediaPipe.
+- The built-in GestureRecognizer is accurate enough for event use. *(Needs a labeled recording: `tools/label.py` + `tools/report.py`.)*
+- Pose + Hands together run fast enough on a Windows laptop CPU. *(Desktop CPU: 25 ms per frame. Run `tools/bench_speed.py --cpu` on a club laptop.)*
+- Body size separates players from people behind them well enough. *(Unit-tested with synthetic bodies; not yet tested in a real crowd.)*
+- Lighting fixes (camera exposure lock, contrast correction) actually help MediaPipe. *(Not built. The health status reports bad light; no fix is applied.)*

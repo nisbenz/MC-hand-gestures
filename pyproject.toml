@@ -2,7 +2,7 @@
 name = "mc-gesture"
 version = "0.1.0"
 description = "A reusable local gesture-control engine for interactive installations"
-readme = "DECISIONS.md"
+readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # mediapipe pulls in opencv-contrib-python; a second OpenCV package would clash over cv2
