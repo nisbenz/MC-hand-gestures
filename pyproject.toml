@@ -13,7 +13,8 @@ dependencies = [
 ]
 
 [project.scripts]
-mc-gesture-view = "mc_gesture.viewer:main"
+mc-gesture = "mc_gesture.run:main"
+mc-gesture-view = "mc_gesture.run:view_main"
 
 [build-system]
 requires = ["hatchling"]

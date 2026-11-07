@@ -47,6 +47,10 @@ Each entry records who made the decision and why. "Owner" = decided by the proje
 | C10 | **Output coordinates are mirrored by default** (`mirror: true`), like a selfie view | Players face the screen, so moving a hand right should move the cursor right | Low: one setting |
 | C11 | **Default thresholds: a gesture starts at score ≥ 0.6 and ends below 0.45** (was 0.7 / 0.5 in P1); calibration can set them per gesture | In the recording, Open_Palm scored a median of 0.61 and only 8% of its frames reached 0.7, so at 0.7 it would rarely fire | Low: settings |
 | C12 | **Timing (P1, P2):** a gesture must last 0.1 s to start and be gone 0.1 s to end; 0.2 s cooldown per hand; a hand can vanish for 0.15 s without losing its state; `gesture_hold` every 0.25 s; one active gesture per hand | The values proposed in P1/P2, now built and covered by unit tests | Low: settings |
+| C13 | **Message format:** one JSON message per event (`gesture_start`, `gesture_hold`, `gesture_end`, `hand_lost`, `player_joined`, `player_left`); `cursor` and `landmarks` once per frame; clients choose layers with `{"subscribe": [...]}`, default events + health | Simple for any language: parse JSON, switch on `type` | Medium: games depend on it |
+| C14 | **The cursor is the smoothed palm center** (wrist + finger bases), not a fingertip | The palm stays put while fingers change shape, so making a fist doesn't jump the cursor | Low |
+| C15 | **The server listens on 127.0.0.1 only by default**; `--host 0.0.0.0` opens it to other machines | Safer default: the camera feed's data stays on the laptop unless asked | Low |
+| C16 | **One command, `mc-gesture`**, runs the engine and server (`--view` adds the debug window); `mc-gesture-view` is the window without the server | | Low |
 
 ## Proposed  not yet confirmed
 

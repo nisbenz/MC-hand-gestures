@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MC-Gesture test client</title>
+<style>
+  :root { --bg: #f6f6f4; --fg: #1d1d1b; --muted: #6b6b66; --line: #d9d9d4; --accent: #2f6fdf; --card: #fff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161615; --fg: #ecece8; --muted: #9a9a94; --line: #34342f; --accent: #7aa7ff; --card: #1f1f1d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; font: 14px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 12px; }
+  input[type=text] { width: 200px; padding: 4px 6px; border: 1px solid var(--line); background: var(--card); color: var(--fg); border-radius: 4px; }
+  button { padding: 4px 10px; border: 1px solid var(--line); background: var(--card); color: var(--fg); border-radius: 4px; cursor: pointer; }
+  #status { color: var(--muted); }
+  #status.on { color: #2a9d4b; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px; min-width: 0; }
+  canvas { width: 100%; aspect-ratio: 16 / 9; display: block; background: var(--bg); border-radius: 4px; }
+  #log { height: 360px; overflow: auto; font: 12px/1.5 ui-monospace, monospace; white-space: pre-wrap; word-break: break-all; margin: 0; }
+  .start { color: #2a9d4b; } .end { color: #c0392b; } .other { color: var(--muted); }
+</style>
+</head>
+<body>
+<h1>MC-Gesture test client</h1>
+<div class="bar">
+  <input id="url" type="text" value="ws://127.0.0.1:8765" aria-label="Server address">
+  <button id="connect">Connect</button>
+  <span id="status">disconnected</span>
+</div>
+<div class="bar" id="layers">
+  <label><input type="checkbox" value="events" checked> events</label>
+  <label><input type="checkbox" value="cursor" checked> cursor</label>
+  <label><input type="checkbox" value="landmarks"> landmarks</label>
+  <label><input type="checkbox" value="health" checked> health</label>
+  <label><input type="checkbox" id="holds"> show gesture_hold</label>
+</div>
+<div class="grid">
+  <div class="card"><canvas id="view" width="640" height="360"></canvas></div>
+  <div class="card"><pre id="log"></pre></div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const canvas = $("view"), ctx = canvas.getContext("2d");
+let ws = null, cursors = [], players = [];
+
+function layers() {
+  return [...document.querySelectorAll("#layers input[value]")].filter((c) => c.checked).map((c) => c.value);
+}
+function log(msg, cls) {
+  const line = document.createElement("div");
+  line.className = cls; line.textContent = msg;
+  $("log").prepend(line);
+  while ($("log").childNodes.length > 300) $("log").lastChild.remove();
+}
+function connect() {
+  if (ws) ws.close();
+  ws = new WebSocket($("url").value);
+  ws.onopen = () => { $("status").textContent = "connected"; $("status").className = "on"; subscribe(); };
+  ws.onclose = () => { $("status").textContent = "disconnected"; $("status").className = ""; };
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.type === "cursor") { cursors = m.cursors; return; }
+    if (m.type === "landmarks") { players = m.players; return; }
+    if (m.type === "gesture_hold" && !$("holds").checked) return;
+    const cls = m.type === "gesture_start" ? "start" : m.type === "gesture_end" ? "end" : "other";
+    log(JSON.stringify(m), cls);
+  };
+}
+function subscribe() {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ subscribe: layers() }));
+  if (!layers().includes("cursor")) cursors = [];
+  if (!layers().includes("landmarks")) players = [];
+}
+function draw() {
+  const w = canvas.width, h = canvas.height, css = getComputedStyle(document.documentElement);
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = css.getPropertyValue("--muted");
+  for (const p of players) {
+    for (const [x, y, v] of p.body) if (v > 0.5) ctx.fillRect(x * w - 2, y * h - 2, 4, 4);
+    for (const pts of Object.values(p.hands)) for (const [x, y] of pts) ctx.fillRect(x * w - 1.5, y * h - 1.5, 3, 3);
+  }
+  for (const c of cursors) {
+    ctx.beginPath(); ctx.arc(c.x * w, c.y * h, c.gesture ? 14 : 8, 0, Math.PI * 2);
+    ctx.strokeStyle = css.getPropertyValue("--accent"); ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = css.getPropertyValue("--fg"); ctx.font = "12px system-ui";
+    ctx.fillText(`P${c.player} ${c.hand}${c.gesture ? " · " + c.gesture : ""}`, c.x * w + 16, c.y * h + 4);
+  }
+  requestAnimationFrame(draw);
+}
+$("connect").onclick = connect;
+document.querySelectorAll("#layers input[value]").forEach((c) => (c.onchange = subscribe));
+draw();
+connect();
+</script>
+</body>
+</html>

@@ -10,6 +10,7 @@ from mc_gesture.capture.camera import Frame
 from mc_gesture.config import Config
 from mc_gesture.detect.detector import Detection, Detector
 from mc_gesture.players import tracker
+from mc_gesture.smoothing.points import HandSmoother
 from mc_gesture.stabilize.gestures import GestureStabilizer
 
 
@@ -19,6 +20,8 @@ class Output:
     detection: Detection
     players: tracker.Frame
     events: list[dict] = field(default_factory=list)
+    cursors: list[dict] = field(default_factory=list)     # layer "cursor"
+    landmarks: list[dict] = field(default_factory=list)   # layer "landmarks"
 
 
 class Engine:
@@ -27,7 +30,11 @@ class Engine:
         self.detector = detector or Detector(use_gpu=use_gpu)
         self.tracker = tracker.PlayerTracker(self.config)
         self.stabilizer = GestureStabilizer(self.config)
+        self.smoother = HandSmoother(self.config)
         self._t0 = None
+
+    def _x(self, x: float) -> float:
+        return round(1 - x if self.config.mirror else x, 4)
 
     def step(self, frame: Frame) -> Output:
         if self._t0 is None:
@@ -40,7 +47,25 @@ class Engine:
         joined = [e for e in players.events if e["type"] == "player_joined"]
         left = [e for e in players.events if e["type"] == "player_left"]
         events = [dict(e, t=round(t, 3)) for e in joined + gesture_events + left]
-        return Output(t, detection, players, events)
+
+        out = Output(t, detection, players, events)
+        keys = set()
+        for player in players.players:
+            hands = {}
+            for side, hand in player.hands.items():
+                key = (player.id, side)
+                keys.add(key)
+                x, y = self.smoother.cursor(key, hand.landmarks, t)
+                out.cursors.append({"player": player.id, "hand": side, "x": self._x(x), "y": round(y, 4),
+                                    "gesture": self.stabilizer.active(player.id, side)})
+                hands[side] = [[self._x(px), round(py, 4)] for px, py in self.smoother.smooth(key, hand.landmarks, t)]
+            out.landmarks.append({
+                "player": player.id, "zone": player.zone, "size": round(player.size, 4),
+                "body": [[self._x(x), round(y, 4), round(v, 2)] for x, y, v in player.body],
+                "hands": hands,
+            })
+        self.smoother.keep_only(keys)
+        return out
 
     def close(self) -> None:
         self.detector.close()
