@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gesture Rush</title>
+<style>
+  :root {
+    --bg: #101418; --panel: #1a2027; --fg: #f2f4f6; --muted: #8b96a3; --line: #2a333d;
+    --good: #3ddc84; --bad: #ff5d5d; --accent: #ffc23d; --p1: #50c8ff;
+  }
+  :root[data-theme="light"] {
+    --bg: #f3f1ec; --panel: #ffffff; --fg: #1b1f24; --muted: #66707b; --line: #dcd8cf;
+    --good: #14975a; --bad: #d13b3b; --accent: #b07800; --p1: #0a7fb5;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f3f1ec; --panel: #ffffff; --fg: #1b1f24; --muted: #66707b; --line: #dcd8cf;
+      --good: #14975a; --bad: #d13b3b; --accent: #b07800; --p1: #0a7fb5;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: grid; grid-template-rows: auto 1fr auto; overflow: hidden;
+  }
+  header, footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: 0.04em; }
+  .pill { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .pill.on { color: var(--good); border-color: var(--good); }
+  .pill.player { color: var(--p1); border-color: var(--p1); }
+  main { position: relative; display: grid; place-items: center; padding: 0 16px; min-height: 0; }
+  #stage { text-align: center; max-width: 720px; width: 100%; }
+  #icon { font-size: clamp(96px, 26vmin, 220px); line-height: 1.1; transition: transform 120ms; }
+  #icon.pop { transform: scale(1.12); }
+  #name { font-size: clamp(22px, 5vmin, 40px); font-weight: 650; margin: 4px 0 8px; }
+  #hint { color: var(--muted); min-height: 1.4em; }
+  #feedback { font-size: clamp(20px, 4vmin, 32px); font-weight: 700; min-height: 1.4em; margin-top: 10px; }
+  #feedback.good { color: var(--good); } #feedback.bad { color: var(--bad); }
+  #timer { height: 6px; background: var(--line); border-radius: 3px; margin: 18px auto 0; max-width: 480px; overflow: hidden; }
+  #timer > div { height: 100%; width: 100%; background: var(--accent); transform-origin: left; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px 20px; font-variant-numeric: tabular-nums; min-width: 0; }
+  .stats b { font-size: 22px; display: block; }
+  .stats span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  #cursor { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+            border: 3px solid var(--p1); pointer-events: none; opacity: 0; transition: opacity 200ms; }
+  #setup { color: var(--muted); font-size: 14px; max-width: 520px; margin: 18px auto 0; }
+  code { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1>GESTURE RUSH</h1>
+  <div style="display:flex; gap:8px; flex-wrap:wrap">
+    <span id="player" class="pill">no player</span>
+    <span id="conn" class="pill">connecting…</span>
+  </div>
+</header>
+<main>
+  <div id="stage">
+    <div id="icon">✋</div>
+    <div id="name">Make any gesture to start</div>
+    <div id="hint">Fist ✊ · Open palm ✋ · Point up ☝️</div>
+    <div id="feedback"></div>
+    <div id="timer"><div id="bar"></div></div>
+    <div id="setup">Start the engine first: <code>uv run mc-gesture</code></div>
+  </div>
+  <div id="cursor"></div>
+</main>
+<footer>
+  <div class="stats">
+    <div><b id="score">0</b><span>score</span></div>
+    <div><b id="streak">0</b><span>streak</span></div>
+    <div><b id="best">–</b><span>best reaction</span></div>
+    <div><b id="time">60</b><span>seconds</span></div>
+  </div>
+  <button id="reset">New round</button>
+</footer>
+<script>
+// Gesture Rush: a reaction game that only uses MC-Gesture's WebSocket events.
+// The first player to make a gesture takes control; other players are ignored
+// until that player leaves (the screen shows who is in control).
+const URL_WS = new URLSearchParams(location.search).get("ws") || "ws://127.0.0.1:8765";
+const ROUND_S = 60, TURN_S = 3;
+const GESTURES = {
+  Closed_Fist: { icon: "✊", name: "Fist" },
+  Open_Palm: { icon: "✋", name: "Open palm" },
+  Pointing_Up: { icon: "☝️", name: "Point up" },
+};
+const $ = (id) => document.getElementById(id);
+
+const game = { state: "lobby", owner: null, target: null, shownAt: 0, score: 0, streak: 0, best: null, endsAt: 0 };
+
+function setFeedback(text, cls = "") { $("feedback").textContent = text; $("feedback").className = cls; }
+function stats() {
+  $("score").textContent = game.score;
+  $("streak").textContent = game.streak;
+  $("best").textContent = game.best ? `${Math.round(game.best)} ms` : "–";
+}
+function showOwner() {
+  const el = $("player");
+  el.textContent = game.owner ? `Player ${game.owner} in control` : "no player";
+  el.className = game.owner ? "pill player" : "pill";
+}
+
+function lobby(message = "Make any gesture to start") {
+  game.state = "lobby"; game.target = null;
+  $("icon").textContent = "✋"; $("name").textContent = message;
+  $("hint").textContent = "Fist ✊ · Open palm ✋ · Point up ☝️";
+  $("bar").style.transform = "scaleX(1)";
+}
+
+function start() {
+  Object.assign(game, { state: "playing", score: 0, streak: 0, endsAt: performance.now() + ROUND_S * 1000 });
+  setFeedback(""); stats(); next();
+}
+
+function next() {
+  const options = Object.keys(GESTURES).filter((g) => g !== game.target);
+  game.target = options[Math.floor(Math.random() * options.length)];
+  game.shownAt = performance.now();
+  const g = GESTURES[game.target];
+  $("icon").textContent = g.icon; $("name").textContent = g.name;
+  $("hint").textContent = "Make this gesture!";
+  $("icon").classList.add("pop"); setTimeout(() => $("icon").classList.remove("pop"), 120);
+}
+
+function onGesture(e) {
+  if (game.owner === null) { game.owner = e.player; showOwner(); }
+  if (e.player !== game.owner) return;                  // someone else: ignored
+  if (game.state === "lobby") { start(); return; }
+  if (game.state !== "playing") return;
+  const reaction = performance.now() - game.shownAt;
+  if (e.gesture === game.target) {
+    game.streak += 1;
+    game.score += Math.max(10, Math.round(100 - reaction / 30)) + game.streak * 5;
+    game.best = game.best ? Math.min(game.best, reaction) : reaction;
+    setFeedback(`${Math.round(reaction)} ms`, "good");
+    next();
+  } else {
+    game.streak = 0;
+    setFeedback(`That was ${GESTURES[e.gesture]?.name || e.gesture}`, "bad");
+  }
+  stats();
+}
+
+function tick() {
+  const now = performance.now();
+  if (game.state === "playing") {
+    const left = Math.max(0, game.endsAt - now);
+    $("time").textContent = Math.ceil(left / 1000);
+    const turnLeft = 1 - (now - game.shownAt) / (TURN_S * 1000);
+    $("bar").style.transform = `scaleX(${Math.max(0, turnLeft)})`;
+    if (turnLeft <= 0) { game.streak = 0; setFeedback("Too slow", "bad"); stats(); next(); }
+    if (left <= 0) {
+      game.state = "over";
+      setFeedback(`Round over: ${game.score} points`, "good");
+      setTimeout(() => lobby("Make any gesture to play again"), 2500);
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+let ws;
+function connect() {
+  ws = new WebSocket(URL_WS);
+  ws.onopen = () => {
+    $("conn").textContent = "engine connected"; $("conn").className = "pill on"; $("setup").hidden = true;
+    ws.send(JSON.stringify({ subscribe: ["events", "cursor"] }));
+  };
+  ws.onclose = () => {
+    $("conn").textContent = "engine offline"; $("conn").className = "pill"; $("setup").hidden = false;
+    setTimeout(connect, 1500);
+  };
+  ws.onmessage = (msg) => {
+    const m = JSON.parse(msg.data);
+    if (m.type === "gesture_start" && GESTURES[m.gesture]) onGesture(m);
+    else if (m.type === "player_left" && m.player === game.owner) {
+      game.owner = null; showOwner(); lobby("Player left. Make any gesture to start");
+    } else if (m.type === "cursor") {
+      const c = m.cursors.find((c) => c.player === game.owner);
+      const el = $("cursor"), box = document.querySelector("main").getBoundingClientRect();
+      el.style.opacity = c ? 1 : 0;
+      if (c) { el.style.left = `${c.x * box.width}px`; el.style.top = `${c.y * box.height}px`; }
+    }
+  };
+}
+
+$("reset").onclick = () => { game.owner = null; showOwner(); setFeedback(""); lobby(); };
+lobby(); stats(); tick(); connect();
+</script>
+</body>
+</html>

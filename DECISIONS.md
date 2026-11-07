@@ -54,6 +54,7 @@ Each entry records who made the decision and why. "Owner" = decided by the proje
 | C17 | **Error scoring:** a label counts as hit if a `gesture_start` of the same gesture comes between 0.3 s before the label start and the label end; leftover `gesture_start` events are false activations; a wrong gesture counts as one miss plus one false activation | Labels are timed by hand, so a small early margin is fair | Low |
 | C18 | **The report's latency is engine latency** (frame read → events ready). Camera and display delay aren't measurable in software and are stated as excluded | Honest about what the number covers; a phone slow-motion test can add the rest later | Low |
 | C19 | **Calibration routine (O5):** about 25 s of on-screen prompts: stand (→ bystander cut-off = 60% of the player's body size), relax hands, then each gesture for 3 s. Per gesture: enter = 20th percentile of the player's scores − 0.03 (0.5–0.9), raised above anything relaxed hands scored; exit = 0.15 below enter. Saved to `calibration.json` (gitignored, venue-specific) | Answers O4 (fixed default 0.10 plus calibration per venue) and O5 | Low: formulas in one function, unit-tested |
+| C20 | **Demo game = Gesture Rush (O7):** a browser reaction game. A gesture is shown; make it within 3 s; points for speed and streaks; 60 s rounds. Uses only the WebSocket `events` and `cursor` layers. The first player to gesture takes control; others are ignored until that player leaves, and the screen shows who's in control (P6) | Original, needs no install (any browser), exercises all three gestures and the ownership rule | Low: separate example |
 
 ## Proposed  not yet confirmed
 
@@ -61,14 +62,12 @@ Each entry records who made the decision and why. "Owner" = decided by the proje
 |---|---|---|
 | P3 | **Wake gesture + lock** (hold an open palm for 1 s to claim control) as an **optional helper** a game can turn on | Not confirmed |
 | P5 | **Health status** (OK / degraded / bad) from detection confidence and frame brightness, so games can react to bad lighting | Not confirmed |
-| P6 | **The game shows who is in control** (e.g. highlights the locked player) | Requirement from research; not confirmed |
 
 ## Still open
 
 | # | Question | Notes |
 |---|---|---|
 | O1 | **What makes a gesture "the best"?** | Proposed: recognized reliably (high score when made) **and** rarely made by accident. Measure each built-in gesture with the replay harness, then pick 3. **First evidence (unlabeled, one person, one camera):** median scores Pointing_Up 0.81, Closed_Fist 0.78, Open_Palm 0.61, Thumb_Up 0.52. The engine uses Closed_Fist, Open_Palm and Pointing_Up for now; the labeled report (step 6) is the real test. |
-| O7 | **Demo game:** there will be one (User); still open: what it is and which gestures it uses | Must use only the engine's events, never MediaPipe directly. |
 | O10 | **Recording consent:** who may be recorded at events (volunteers only, or public sessions with signage)? | User chose "decide later". **Must be settled before the first event recording.** Recordings stay local (gitignored). |
 | O9 | **Camera unplugged mid-session:** right now the engine just stops. Should it keep retrying and report `camera_lost` to games (part of P5 health)? | Found in step 1 testing: unplugging the webcam ends the loop (`errno=19 No such device`). A loose USB cable at an event would freeze the game silently. |
 | O8 | **Packaging / install:** how people get the engine onto a laptop (e.g. `pip install`, or a single executable for Windows) | Not about GPU; GPU is settled in D8. Low priority for the MVP. |
