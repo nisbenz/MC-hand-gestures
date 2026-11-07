@@ -25,7 +25,7 @@ To watch the messages a game receives, open `examples/ws_client/index.html` in a
 
 ## Gestures
 
-The engine reports three of MediaPipe's built-in gestures: `Closed_Fist` ✊, `Open_Palm` ✋ and `Pointing_Up` ☝️. You can change them with the `gestures` setting; the other built-in gestures are `Thumb_Up`, `Thumb_Down`, `Victory` and `ILoveYou`.
+The engine reports three of MediaPipe's built-in gestures: `Closed_Fist`  `Open_Palm`  and `Pointing_Up` . You can change them with the `gestures` setting; the other built-in gestures are `Thumb_Up`, `Thumb_Down`, `Victory` and `ILoveYou`.
 
 ## For game developers: the protocol
 
