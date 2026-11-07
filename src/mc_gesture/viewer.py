@@ -1,6 +1,8 @@
-"""Step 1 debug viewer: camera + GestureRecognizer + Pose drawn on screen, with timings.
+"""Debug viewer: camera + GestureRecognizer + Pose drawn on screen, with timings.
 
-Run:  uv run mc-gesture-view      (press q to quit)
+Run:     uv run mc-gesture-view                         (press q to quit)
+Record:  uv run mc-gesture-view --record
+Replay:  uv run mc-gesture-view --replay recordings/<session>
 """
 
 import argparse
@@ -8,12 +10,14 @@ import signal
 import statistics
 import time
 from collections import deque
+from pathlib import Path
 
 import cv2
 from mediapipe.tasks.python import vision
 
 from mc_gesture.capture.camera import Camera
 from mc_gesture.detect.detector import Detection, Detector
+from mc_gesture.record.recorder import Recorder, Replay
 
 HAND_LINKS = [(c.start, c.end) for c in vision.HandLandmarksConnections.HAND_CONNECTIONS]
 POSE_LINKS = [(c.start, c.end) for c in vision.PoseLandmarksConnections.POSE_LANDMARKS]
@@ -49,10 +53,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--camera", type=int, default=0)
     parser.add_argument("--cpu", action="store_true", help="skip the GPU attempt")
+    parser.add_argument("--record", action="store_true", help="save the session to recordings/ (off by default)")
+    parser.add_argument("--replay", type=Path, metavar="SESSION", help="play a recorded session instead of the camera")
+    parser.add_argument("--fast", action="store_true", help="with --replay: run as fast as possible, not in real time")
     args = parser.parse_args()
 
-    camera = Camera(args.camera)
-    print(f"[camera] {camera.describe()}")
+    if args.replay:
+        camera = Replay(args.replay, realtime=not args.fast)
+    else:
+        camera = Camera(args.camera)
+    print(f"[source] {camera.describe()}")
+    recorder = Recorder(camera.describe()) if args.record and not args.replay else None
+    if recorder:
+        print(f"[record] saving to {recorder.path}")
     detector = Detector(use_gpu=not args.cpu)
     # GUI_NORMAL drops the Qt toolbar and status bar. The status bar redraws pixel
     # coordinates on every mouse move, and with OpenCV's font-less Qt build each redraw
@@ -64,15 +77,18 @@ def main() -> None:
     try:
         while True:
             frame = camera.read()
+            t_read = time.perf_counter()  # frame.t_capture is the recorded time during replay
             if frame is None:
                 break
+            if recorder:
+                recorder.write(frame)
             detection = detector.process(frame.image_bgr, frame.t_capture)
             t_done = time.perf_counter()
 
             window.append((
                 detection.gesture_ms,
                 detection.pose_ms,
-                (t_done - frame.t_capture) * 1000,
+                (t_done - t_read) * 1000,
                 t_done - last_frame_time,
             ))
             last_frame_time = t_done
@@ -88,9 +104,15 @@ def main() -> None:
                 f"FPS {1 / dt:5.1f}",
                 f"gesture {g_ms:5.1f} ms  [{detector.gesture_delegate}]",
                 f"pose    {p_ms:5.1f} ms  [{detector.pose_delegate}]",
-                f"capture->result {total_ms:5.1f} ms (median)",
+                f"read->result {total_ms:5.1f} ms (median)",
                 f"hands {len(detection.hands)}  bodies {len(detection.poses)}",
             ])
+            if recorder:
+                cv2.circle(view, (view.shape[1] - 30, 30), 10, (0, 0, 255), -1)
+                cv2.putText(view, "REC", (view.shape[1] - 90, 38), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            elif args.replay:
+                cv2.putText(view, f"REPLAY {frame.index}", (view.shape[1] - 200, 38),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 200, 0), 2)
             cv2.imshow(WINDOW, view)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
@@ -102,6 +124,9 @@ def main() -> None:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
         detector.close()
         camera.close()
+        if recorder:
+            recorder.close()
+            print(f"[record] {recorder.frames} frames saved to {recorder.path}")
         cv2.destroyAllWindows()
 
 

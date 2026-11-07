@@ -29,6 +29,8 @@ Each entry records who made the decision and why. "User" = project owner; "Claud
 
 | D16 | **Python 3.12, MediaPipe pinned to 1.1.1**, environment managed with `uv` | User (`uv` chosen by Claude) | 3.12 has the widest package support for Windows and macOS laptops; 1.1.1 is recent but past its first bug-fix release. |
 
+| D17 | **Recordings use MJPG video** (`video.avi` + `frames.csv` timestamps + `meta.json`), and **recording is off by default** (`--record`) | User | Measured on the dev webcam: ≈1.5 GB per 10 min, average pixel error 1.4 vs live. mp4v was smaller (0.5 GB) but drifted more (2.5); FFV1 was exact but 6.4 GB. |
+
 ## Made by Claude during the build (check these)
 
 | # | Choice | Why | Cost to change |
@@ -57,6 +59,8 @@ Each entry records who made the decision and why. "User" = project owner; "Claud
 | O4 | **Body size threshold:** fixed value or set by calibration per venue? | |
 | O5 | **Calibration flow:** what the user does (hold each gesture for N seconds?) and what it sets | |
 | O7 | **Demo game:** there will be one (User); still open: what it is and which gestures it uses | Must use only the engine's events, never MediaPipe directly. |
+| O10 | **Recording consent:** who may be recorded at events (volunteers only, or public sessions with signage)? | User chose "decide later". **Must be settled before the first event recording.** Recordings stay local (gitignored). |
+| O11 | **Speed with hands in view:** with hands present, `process()` takes a median of 24 ms on GPU and 43 ms on CPU (dev machine, 720p). The live loop drops to ≈23 FPS on GPU and would be ≈20 FPS on CPU. Options: lower the input resolution, run Pose every other frame, or run the two models in parallel. | Measured in step 2 on a 26 s recording. Latency is still under the 100 ms target (D13), but CPU laptops (D8) will feel slower. Measure each option with replay before choosing. |
 | O9 | **Camera unplugged mid-session:** right now the engine just stops. Should it keep retrying and report `camera_lost` to games (part of P5 health)? | Found in step 1 testing: unplugging the webcam ends the loop (`errno=19 No such device`). A loose USB cable at an event would freeze the game silently. |
 | O8 | **Packaging / install:** how people get the engine onto a laptop (e.g. `pip install`, or a single executable for Windows) | Not about GPU; GPU is settled in D8. Low priority for the MVP. |
 
