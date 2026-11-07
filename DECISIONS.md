@@ -24,6 +24,8 @@ Each entry records who made the decision and why. "User" = project owner; "Claud
 | D11 | **Zones support both modes**, filter (drop players outside every zone) and label (report the zone, drop nobody), chosen by the app | User | Gives the app freedom. |
 | D12 | **Gestures = the 3 most reliable built-in gestures**, chosen by measurement | User | "Most reliable" still needs a definition and a test; see O1. |
 | D13 | **Report targets (starting values):** median latency ≤ 100 ms on a CPU laptop; false activations ≤ 1 per 5 min of play; miss rate ≤ 5% | User (values suggested by Claude) | These give the report pass/fail lines. They're starting guesses, not standards; revisit after the first replay measurements. |
+| D14 | **Build order:** (1) camera + GestureRecognizer + Pose on screen with timings → (2) recorder + replay → (3) player filter → (4) stabilize → events → (5) WebSocket + layers (cursor smoothing here) → (6) report → (7) calibration → (8) demo game → (9) zones, lock, health | User (order proposed by Claude) | Each step ends with something runnable. Recording comes early so every later step is tested on the same footage. |
+| D15 | **Record and replay harness** (was P4): record the **camera video** plus timestamps, label ground truth, rerun the engine offline to measure false activations, misses and latency | User | Required to check D12 and D13. Recording video (not only results) lets us rerun with different settings, such as GPU vs CPU or lighting fixes. |
 
 ## Proposed  not yet confirmed
 
@@ -32,7 +34,6 @@ Each entry records who made the decision and why. "User" = project owner; "Claud
 | P1 | **Stabilize stage:** separate enter/exit thresholds, minimum hold time (~100 ms), cooldown, one active gesture at a time | Accepted implicitly; confirm the numbers during the build |
 | P2 | **Tracking-loss grace period** (~150 ms): keep the last state through short dropouts before sending `hand_lost` | Not discussed directly |
 | P3 | **Wake gesture + lock** (hold an open palm for 1 s to claim control) as an **optional helper** a game can turn on | Not confirmed |
-| P4 | **Record and replay harness** built early: record landmark streams, label ground truth, rerun offline to measure false activations, misses and latency | Not confirmed; this is how the "measurable report" requirement gets met |
 | P5 | **Health status** (OK / degraded / bad) from detection confidence and frame brightness, so games can react to bad lighting | Not confirmed |
 | P6 | **The game shows who is in control** (e.g. highlights the locked player) | Requirement from research; not confirmed |
 
