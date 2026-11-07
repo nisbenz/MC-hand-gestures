@@ -15,6 +15,7 @@ dependencies = [
 [project.scripts]
 mc-gesture = "mc_gesture.run:main"
 mc-gesture-view = "mc_gesture.run:view_main"
+mc-gesture-calibrate = "mc_gesture.calibration.routine:main"
 
 [build-system]
 requires = ["hatchling"]

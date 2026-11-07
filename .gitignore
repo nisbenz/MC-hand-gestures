@@ -11,3 +11,6 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+
+# Venue/player-specific settings written by mc-gesture-calibrate
+calibration.json
