@@ -21,7 +21,7 @@ uv run python tools/download_models.py    # fetch the two MediaPipe models (~14 
 uv run mc-gesture --view                  # engine + debug window + ws://127.0.0.1:8765
 ```
 
-Then open `examples/demo_game/index.html` in a browser and make a gesture to play **Gesture Rush**. To watch the raw messages, open `examples/ws_client/index.html`. If your browser blocks the connection from a local file, serve the folder: `python3 -m http.server -d examples` and open `http://localhost:8000/demo_game/`.
+To watch the messages a game receives, open `examples/ws_client/index.html` in a browser. If your browser blocks the connection from a local file, serve the folder: `python3 -m http.server -d examples` and open `http://localhost:8000/ws_client/`.
 
 ## Gestures
 
@@ -111,5 +111,5 @@ uv run pytest          # unit tests (no camera needed)
 | `transport/` | WebSocket server |
 | `record/` | Recorder, replay, labels |
 | `calibration/` | Calibration routine |
-| `examples/` | Demo game and test client |
+| `examples/` | Browser test client |
 | `tools/` | Model download, labeling, report, benchmarks |
