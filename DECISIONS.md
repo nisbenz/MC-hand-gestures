@@ -39,6 +39,7 @@ Each entry records who made the decision and why. "User" = project owner; "Claud
 | C2 | **Both models run in VIDEO mode** (synchronous calls, our own timestamps) | A recorded video then replays exactly like the live camera (D15) | Medium |
 | C3 | **Detect up to 4 people / 8 hands** | Bystanders must be *detected* before the player filter can drop them (D3) | Low: one parameter |
 | C5 | **Camera requests MJPG** and the engine prints the format/size/rate it actually got | The default YUYV gave 4 FPS at 720p on the dev webcam; MJPG gives 30. Club webcams may behave differently, so the actual format is reported | Low |
+| C6 | **Gesture and Pose models run in parallel** (Pose on a second thread), on by default. Was O11. Resizing (`scale`) and skipping Pose frames (`pose_every`) are available but off | Measured on the 26 s recording with `tools/bench_speed.py`. CPU: 42.8 → 24.5 ms per frame (p95 51 → 32 ms, fits the 33 ms camera frame). GPU: 27.5 → 19.7 ms. Results 100% identical to before. Half-size input changed 6% of gesture labels and didn't help on CPU. Measured on a desktop CPU; laptops will be slower | Low: one flag |
 | C4 | **Only `opencv-contrib-python`** (pulled in by MediaPipe), not `opencv-python` too | Two OpenCV packages overwrite each other's `cv2` files | Low |
 
 ## Proposed  not yet confirmed
@@ -60,7 +61,6 @@ Each entry records who made the decision and why. "User" = project owner; "Claud
 | O5 | **Calibration flow:** what the user does (hold each gesture for N seconds?) and what it sets | |
 | O7 | **Demo game:** there will be one (User); still open: what it is and which gestures it uses | Must use only the engine's events, never MediaPipe directly. |
 | O10 | **Recording consent:** who may be recorded at events (volunteers only, or public sessions with signage)? | User chose "decide later". **Must be settled before the first event recording.** Recordings stay local (gitignored). |
-| O11 | **Speed with hands in view:** with hands present, `process()` takes a median of 24 ms on GPU and 43 ms on CPU (dev machine, 720p). The live loop drops to ≈23 FPS on GPU and would be ≈20 FPS on CPU. Options: lower the input resolution, run Pose every other frame, or run the two models in parallel. | Measured in step 2 on a 26 s recording. Latency is still under the 100 ms target (D13), but CPU laptops (D8) will feel slower. Measure each option with replay before choosing. |
 | O9 | **Camera unplugged mid-session:** right now the engine just stops. Should it keep retrying and report `camera_lost` to games (part of P5 health)? | Found in step 1 testing: unplugging the webcam ends the loop (`errno=19 No such device`). A loose USB cable at an event would freeze the game silently. |
 | O8 | **Packaging / install:** how people get the engine onto a laptop (e.g. `pip install`, or a single executable for Windows) | Not about GPU; GPU is settled in D8. Low priority for the MVP. |
 
